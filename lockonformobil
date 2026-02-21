@@ -1,0 +1,174 @@
+print("Lua code is running securely with Mobile Support.")
+
+local NotificationLibrary = loadstring(game:HttpGet("https://raw.githubusercontent.com/IceMinisterq/Notification-Library/Main/Library.lua"))()
+NotificationLibrary:SendNotification("Info", "Script executed. PC: J to toggle, Mobile: Use Buttons", 5)
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local LockonEnabled = false
+local LockedTarget = nil
+local TargetGui = nil
+
+local function notify(message)
+    NotificationLibrary:SendNotification("Info", message, 3)
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+local ToggleFrame = Instance.new("Frame")
+local ToggleBtn = Instance.new("TextButton")
+local LockBtn = Instance.new("TextButton")
+
+ScreenGui.Name = "MobileLockOn"
+ScreenGui.Parent = (gethui and gethui()) or CoreGui 
+
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+ToggleFrame.Name = "ToggleFrame"
+ToggleFrame.Parent = ScreenGui
+ToggleFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+ToggleFrame.BackgroundTransparency = 0.5
+ToggleFrame.Position = UDim2.new(0.05, 0, 0.4, 0)
+ToggleFrame.Size = UDim2.new(0, 100, 0, 110)
+
+ToggleBtn.Name = "ToggleBtn"
+ToggleBtn.Parent = ToggleFrame
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+ToggleBtn.Size = UDim2.new(1, 0, 0.45, 0)
+ToggleBtn.Font = Enum.Font.SourceSansBold
+ToggleBtn.Text = "OFF"
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.TextSize = 14
+
+LockBtn.Name = "LockBtn"
+LockBtn.Parent = ToggleFrame
+LockBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+LockBtn.Position = UDim2.new(0, 0, 0.55, 0)
+LockBtn.Size = UDim2.new(1, 0, 0.45, 0)
+LockBtn.Font = Enum.Font.SourceSansBold
+LockBtn.Text = "LOCK"
+LockBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+LockBtn.TextSize = 14
+
+local function createTargetGui(character)
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "TargetOverlay"
+    billboard.Adornee = root
+    billboard.Size = UDim2.new(0, 200, 0, 300) 
+    billboard.AlwaysOnTop = true
+    billboard.LightInfluence = 0
+    billboard.MaxDistance = 10000
+    billboard.Parent = root
+
+    local image = Instance.new("ImageLabel")
+    image.Size = UDim2.new(1, 0, 1, 0)
+    image.BackgroundTransparency = 1
+    image.Image = "rbxassetid://263401222"
+    image.ImageTransparency = 0.2
+    image.Parent = billboard
+
+    TargetGui = billboard
+end
+
+local function removeTargetGui()
+    if TargetGui then
+        TargetGui:Destroy()
+        TargetGui = nil
+    end
+end
+
+local function getClosestPlayer()
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            local headPos = player.Character.Head.Position
+            local screenPos, onScreen = Camera:WorldToViewportPoint(headPos)
+
+            if onScreen then
+                local dist = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)).Magnitude
+                if dist < shortestDistance then
+                    shortestDistance = dist
+                    closestPlayer = player
+                end
+            end
+        end
+    end
+    return closestPlayer
+end
+
+local function toggleScript()
+    LockonEnabled = not LockonEnabled
+    ToggleBtn.Text = LockonEnabled and "ON" or "OFF"
+    ToggleBtn.BackgroundColor3 = LockonEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    notify("Lockon " .. (LockonEnabled and "Enabled" or "Disabled"))
+
+    if not LockonEnabled and LockedTarget then
+        LockedTarget = nil
+        removeTargetGui()
+    end
+end
+
+local function handleLockAction()
+    if not LockonEnabled then return end
+
+    if LockedTarget then
+        notify("Unlocked from " .. LockedTarget.Name)
+        LockedTarget = nil
+        removeTargetGui()
+    else
+        local target = getClosestPlayer()
+        if target then
+            LockedTarget = target
+            notify("Locked onto " .. target.Name)
+            createTargetGui(target.Character)
+        else
+            notify("No valid target")
+        end
+    end
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.J then
+        toggleScript()
+    end
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+        handleLockAction()
+    end
+end)
+
+ToggleBtn.MouseButton1Click:Connect(toggleScript)
+LockBtn.MouseButton1Click:Connect(handleLockAction)
+
+RunService.RenderStepped:Connect(function()
+    if LockonEnabled and LockedTarget and LockedTarget.Character then
+        local char = LockedTarget.Character
+        local head = char:FindFirstChild("Head")
+        local root = char:FindFirstChild("HumanoidRootPart")
+
+        if head and root then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, head.Position)
+
+            if TargetGui then
+                local distance = (Camera.CFrame.Position - root.Position).Magnitude
+                local scale = math.clamp(1 / (distance / 25), 0.3, 1)
+                TargetGui.Size = UDim2.new(0, 150 * scale, 0, 150 * scale)
+            end
+        end
+    else
+
+        if LockedTarget and (not LockedTarget.Character or not LockedTarget.Character:FindFirstChild("HumanoidRootPart")) then
+            LockedTarget = nil
+            removeTargetGui()
+        end
+    end
+end)
