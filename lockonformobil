@@ -1,7 +1,6 @@
-print("Lua code is running securely with Mobile Support.")
+print("Lock-On Fixed: No more leaving the body.")
 
 local NotificationLibrary = loadstring(game:HttpGet("https://raw.githubusercontent.com/IceMinisterq/Notification-Library/Main/Library.lua"))()
-NotificationLibrary:SendNotification("Info", "Script executed. PC: J to toggle, Mobile: Use Buttons", 5)
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -14,87 +13,71 @@ local LockonEnabled = false
 local LockedTarget = nil
 local TargetGui = nil
 
-local function notify(message)
-    NotificationLibrary:SendNotification("Info", message, 3)
-end
+local Smoothness = 0.2 
 
 local ScreenGui = Instance.new("ScreenGui")
-local ToggleFrame = Instance.new("Frame")
+local MainFrame = Instance.new("Frame")
 local ToggleBtn = Instance.new("TextButton")
 local LockBtn = Instance.new("TextButton")
 
-ScreenGui.Name = "MobileLockOn"
-ScreenGui.Parent = (gethui and gethui()) or CoreGui 
+ScreenGui.Name = "FixedMobileLock"
+ScreenGui.Parent = (gethui and gethui()) or CoreGui
+ScreenGui.ResetOnSpawn = false
 
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.BackgroundTransparency = 0.4
+MainFrame.Position = UDim2.new(0.1, 0, 0.5, 0)
+MainFrame.Size = UDim2.new(0, 80, 0, 90)
+MainFrame.Active = true
+MainFrame.Draggable = true
 
-ToggleFrame.Name = "ToggleFrame"
-ToggleFrame.Parent = ScreenGui
-ToggleFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-ToggleFrame.BackgroundTransparency = 0.5
-ToggleFrame.Position = UDim2.new(0.05, 0, 0.4, 0)
-ToggleFrame.Size = UDim2.new(0, 100, 0, 110)
+local UICorner = Instance.new("UICorner", MainFrame)
+local UIList = Instance.new("UIListLayout", MainFrame)
+UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+UIList.Padding = UDim.new(0, 5)
 
 ToggleBtn.Name = "ToggleBtn"
-ToggleBtn.Parent = ToggleFrame
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-ToggleBtn.Size = UDim2.new(1, 0, 0.45, 0)
-ToggleBtn.Font = Enum.Font.SourceSansBold
+ToggleBtn.Parent = MainFrame
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+ToggleBtn.Size = UDim2.new(0.9, 0, 0, 40)
 ToggleBtn.Text = "OFF"
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.TextSize = 14
+ToggleBtn.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", ToggleBtn)
 
 LockBtn.Name = "LockBtn"
-LockBtn.Parent = ToggleFrame
-LockBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-LockBtn.Position = UDim2.new(0, 0, 0.55, 0)
-LockBtn.Size = UDim2.new(1, 0, 0.45, 0)
-LockBtn.Font = Enum.Font.SourceSansBold
+LockBtn.Parent = MainFrame
+LockBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+LockBtn.Size = UDim2.new(0.9, 0, 0, 40)
 LockBtn.Text = "LOCK"
-LockBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-LockBtn.TextSize = 14
+LockBtn.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", LockBtn)
 
 local function createTargetGui(character)
+    if TargetGui then TargetGui:Destroy() end
     local root = character:FindFirstChild("HumanoidRootPart")
     if not root then return end
-
-    local billboard = Instance.new("BillboardGui")
+    local billboard = Instance.new("BillboardGui", root)
     billboard.Name = "TargetOverlay"
-    billboard.Adornee = root
-    billboard.Size = UDim2.new(0, 200, 0, 300) 
+    billboard.Size = UDim2.new(0, 100, 0, 100) 
     billboard.AlwaysOnTop = true
-    billboard.LightInfluence = 0
-    billboard.MaxDistance = 10000
-    billboard.Parent = root
-
-    local image = Instance.new("ImageLabel")
+    local image = Instance.new("ImageLabel", billboard)
     image.Size = UDim2.new(1, 0, 1, 0)
     image.BackgroundTransparency = 1
     image.Image = "rbxassetid://263401222"
-    image.ImageTransparency = 0.2
-    image.Parent = billboard
-
+    image.ImageColor3 = Color3.fromRGB(255, 0, 0)
     TargetGui = billboard
-end
-
-local function removeTargetGui()
-    if TargetGui then
-        TargetGui:Destroy()
-        TargetGui = nil
-    end
 end
 
 local function getClosestPlayer()
     local closestPlayer = nil
     local shortestDistance = math.huge
-
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
-            local headPos = player.Character.Head.Position
-            local screenPos, onScreen = Camera:WorldToViewportPoint(headPos)
-
+            local pos, onScreen = Camera:WorldToViewportPoint(player.Character.Head.Position)
             if onScreen then
-                local dist = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)).Magnitude
+                local dist = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)).Magnitude
                 if dist < shortestDistance then
                     shortestDistance = dist
                     closestPlayer = player
@@ -105,70 +88,40 @@ local function getClosestPlayer()
     return closestPlayer
 end
 
-local function toggleScript()
-    LockonEnabled = not LockonEnabled
-    ToggleBtn.Text = LockonEnabled and "ON" or "OFF"
-    ToggleBtn.BackgroundColor3 = LockonEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
-    notify("Lockon " .. (LockonEnabled and "Enabled" or "Disabled"))
+RunService.RenderStepped:Connect(function()
+    if LockonEnabled and LockedTarget and LockedTarget.Character then
+        local targetHead = LockedTarget.Character:FindFirstChild("Head")
+        local myChar = LocalPlayer.Character
 
-    if not LockonEnabled and LockedTarget then
-        LockedTarget = nil
-        removeTargetGui()
-    end
-end
+        if targetHead and myChar then
 
-local function handleLockAction()
-    if not LockonEnabled then return end
+            local lookAtCFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
 
-    if LockedTarget then
-        notify("Unlocked from " .. LockedTarget.Name)
-        LockedTarget = nil
-        removeTargetGui()
-    else
-        local target = getClosestPlayer()
-        if target then
-            LockedTarget = target
-            notify("Locked onto " .. target.Name)
-            createTargetGui(target.Character)
-        else
-            notify("No valid target")
+            Camera.CFrame = Camera.CFrame:Lerp(lookAtCFrame, Smoothness)
         end
-    end
-end
-
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.J then
-        toggleScript()
-    end
-    if input.UserInputType == Enum.UserInputType.MouseButton2 then
-        handleLockAction()
     end
 end)
 
-ToggleBtn.MouseButton1Click:Connect(toggleScript)
-LockBtn.MouseButton1Click:Connect(handleLockAction)
+ToggleBtn.MouseButton1Click:Connect(function()
+    LockonEnabled = not LockonEnabled
+    ToggleBtn.Text = LockonEnabled and "ON" or "OFF"
+    ToggleBtn.BackgroundColor3 = LockonEnabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
+    if not LockonEnabled then 
+        LockedTarget = nil 
+        if TargetGui then TargetGui:Destroy() end
+    end
+end)
 
-RunService.RenderStepped:Connect(function()
-    if LockonEnabled and LockedTarget and LockedTarget.Character then
-        local char = LockedTarget.Character
-        local head = char:FindFirstChild("Head")
-        local root = char:FindFirstChild("HumanoidRootPart")
-
-        if head and root then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, head.Position)
-
-            if TargetGui then
-                local distance = (Camera.CFrame.Position - root.Position).Magnitude
-                local scale = math.clamp(1 / (distance / 25), 0.3, 1)
-                TargetGui.Size = UDim2.new(0, 150 * scale, 0, 150 * scale)
-            end
-        end
+LockBtn.MouseButton1Click:Connect(function()
+    if not LockonEnabled then return end
+    if LockedTarget then
+        LockedTarget = nil
+        if TargetGui then TargetGui:Destroy() end
     else
-
-        if LockedTarget and (not LockedTarget.Character or not LockedTarget.Character:FindFirstChild("HumanoidRootPart")) then
-            LockedTarget = nil
-            removeTargetGui()
+        local t = getClosestPlayer()
+        if t then
+            LockedTarget = t
+            createTargetGui(t.Character)
         end
     end
 end)
