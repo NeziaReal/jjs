@@ -15,6 +15,6 @@ platform.BottomSurface = Enum.SurfaceType.Smooth
 platform.Parent = workspace
 Fluent:Notify({
     Title = "Nameless",
-    Content = "if there is a key on this script YOU HAVE BEEN SCAMMED! Please join the discord server from clipboard",
+    Content = "if there is a key on this script YOU HAVE BEEN SCAMMED! Please join the discord server from clipboard, this includes nexohub, they are skidding,",
     Duration = 3
 })
